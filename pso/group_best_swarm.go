@@ -29,7 +29,7 @@ func (s *GroupBestSwarm) run(numIterations int, f func(left chan *ParticleStatus
 		nGroupIterations := int(float64(numIterations) * s.PercentGroupIterations)
 		for i := 0; i < numIterations; i++ {
 			for g := 0; g < s.NGroups-1; g++ {
-				for j := g * numInGroup; j < g*(numInGroup+1); j++ {
+				for j := g * numInGroup; j < (g+1)*numInGroup; j++ {
 					swarm.particles[g].Status.OverwriteIfBetter(&s.particles[j].Status, s.better)
 				}
 			}
@@ -49,7 +49,7 @@ func (s *GroupBestSwarm) run(numIterations int, f func(left chan *ParticleStatus
 			}
 			fitnessChan <- gBestStatus.Fitness
 			for g := 0; g < s.NGroups-1; g++ {
-				for j := g * numInGroup; j < g*(numInGroup+1); j++ {
+				for j := g * numInGroup; j < (g+1)*numInGroup; j++ {
 					for k := 0; k < s.problem.Dims(); k++ {
 						s.UpdateParticleVAndPosition(s.particles[j], k, swarm.particles[g].BestStatus.Positions[k])
 					}

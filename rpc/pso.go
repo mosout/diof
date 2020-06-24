@@ -11,13 +11,15 @@ import (
 type PSO struct {
 	bestStatus        sync.Map
 	connectionCounter sync.Map
-	better            func(float64, float64) bool
+	better            sync.Map
 }
 
 func (s *PSO) Enter(ctx context.Context, args *models.Empty, reply *models.Empty) error {
 	reqMeta := ctx.Value(share.ReqMetaDataKey).(map[string]string)
 	namespace, target, uuid := reqMeta["namespace"], reqMeta["target"], reqMeta["id"]
-	s.better = pso.SelectBetter(target)
+	if _, ok := s.better.Load(namespace); !ok {
+		s.better.Store(namespace, pso.SelectBetter(target))
+	}
 	if conns, ok := s.connectionCounter.Load(namespace); !ok {
 		s.connectionCounter.Store(namespace, map[string]bool{
 			uuid: true,
@@ -38,6 +40,7 @@ func (s *PSO) Exit(ctx context.Context, args *models.Empty, reply *models.Empty)
 		if len(connsMap) == 0 {
 			s.connectionCounter.Delete(namespace)
 			s.bestStatus.Delete(namespace)
+			s.better.Delete(namespace)
 		}
 		s.connectionCounter.Store(namespace, connsMap)
 	}
@@ -50,7 +53,9 @@ func (s *PSO) Push(ctx context.Context, ps *pso.ParticleStatus, reply *models.Em
 		s.bestStatus.Store(namespace, ps)
 	} else {
 		oldStatus := old.(*pso.ParticleStatus)
-		if s.better(ps.Fitness, oldStatus.Fitness) {
+		better, _ := s.better.Load(namespace)
+		betterFunc := better.(func(float64, float64) bool)
+		if betterFunc(ps.Fitness, oldStatus.Fitness) {
 			s.bestStatus.Store(namespace, ps)
 		}
 	}
